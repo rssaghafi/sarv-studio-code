@@ -1,0 +1,35 @@
+// Props schema for an episode (props.json). Times in seconds.
+export type Move = 'none' | 'push' | 'pan-l' | 'pan-r' | 'parallax' | 'speaker' | 'drift';   // v0.3: speaker = push toward focus (cap 1.25), drift = slow breathing move for silences
+export type Trans = 'cut' | 'dissolve' | 'goldwipe';
+export type WindSpec = {amp?: number; lambda?: number; speed?: number; cell?: number; zones?: number[][]; calm?: number[][]};   // v0.4 procedural wind: amp px at 1920 wide; rects [x0,y0,x1,y1] 0..1
+export type Label = {tag: 'SOURCE' | 'INTERP' | 'INVENTED'; text: string};
+export type ShotSpec = {
+  id: string;                       // shot ID (S01…), shown in animatic mode
+  kind: 'image' | 'video' | 'title' | 'chapter' | 'labels' | 'end';
+  src?: string;                     // file in the public dir (image or locked-camera clip)
+  src916?: string;                  // DEPRECATED v0.3: Shorts now show the full 16:9 frame in a 9:16 canvas (letterbox); unused
+  fg?: string;                      // BiRefNet cut-out for parallax
+  dur: number;                      // seconds on screen (before transition overlap)
+  move?: Move; dir?: 1 | -1;        // one move per shot (STUDIO §5)
+  focus?: [number, number];         // v0.3: speaker move target, 0..1 of the frame (x, y); default [0.5, 0.42]
+  wind?: WindSpec;                  // v0.4: procedural wind on fg (if given) else on src (still images only)
+  dust?: boolean;                   // gold-dust particles
+  text?: string; sub?: string;      // title / chapter / end card text
+  logoSize?: number;                // v0.5b: title card logo centred above the wordmark at this px size (1080p); unset = small top-right mark
+  logo?: string;                    // v0.5: brand mark (transparent PNG in public): title card top-right, end card centre-left
+  labels?: Label[];                 // closing segment: what the text says / what we changed
+  trans?: Trans; transDur?: number; // transition INTO this shot
+  line?: string;                    // script line ID(s), animatic overlay
+};
+export type Clip = {src: string; at: number; trimStart?: number; dur?: number; vol?: number};
+export type Caption = {start: number; end: number; text: string};
+export type FilmProps = {
+  shots: ShotSpec[];
+  narration?: Clip[];
+  music?: Clip[];
+  duckDb?: number;                  // music ducking under voice, 12–15 dB (STUDIO §5)
+  captions?: Caption[];
+  showCaptions?: boolean;           // burn-in (Shorts: true; master: false, upload SRT instead)
+  hook?: string; footer?: string;    // v0.4 Shorts: hook line in the top lapis band, closing line ('Full film on YouTube — link in bio') in the bottom band
+  animatic?: boolean;               // shot IDs + timecode + "ANIMATIC" tag
+};

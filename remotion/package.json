@@ -1,0 +1,4 @@
+{ "name": "sarv-remotion", "private": true,
+  "description": "Sarv & Simurgh Remotion templates v0.4: Film (16:9 master + animatic), Short (9:16), camera kit. Props-driven (props.json per episode).",
+  "dependencies": { "remotion": "4.0.536", "@remotion/cli": "4.0.536", "@remotion/transitions": "4.0.536", "@remotion/fonts": "4.0.536",
+    "react": "18.3.1", "react-dom": "18.3.1" } }

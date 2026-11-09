@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1f4d3a"/>
+      <stop offset="1" stop-color="#12301f"/>
+    </linearGradient>
+  </defs>
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#bg)"/>
+  <!-- cypress (sarv) -->
+  <path d="M300 250 C 230 400, 220 560, 255 690 L 345 690 C 380 560, 370 400, 300 250 Z" fill="#7fb38f"/>
+  <rect x="290" y="690" width="20" height="70" fill="#c9a45c"/>
+  <!-- plan rows -->
+  <g fill="#f3ead6">
+    <rect x="440" y="330" width="330" height="56" rx="28"/>
+    <rect x="440" y="484" width="330" height="56" rx="28" opacity="0.85"/>
+    <rect x="440" y="638" width="250" height="56" rx="28" opacity="0.6"/>
+  </g>
+  <g fill="none" stroke="#c9a45c" stroke-width="22" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M378 358 l 14 16 l 28 -34"/>
+    <path d="M378 512 l 14 16 l 28 -34"/>
+  </g>
+  <circle cx="398" cy="666" r="18" fill="none" stroke="#c9a45c" stroke-width="10"/>
+</svg>

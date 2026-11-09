@@ -1,0 +1,18 @@
+.env
+.env.*
+!.env.example
+__pycache__/
+node_modules/
+*.log
+_to_delete/
+
+# Added Nov 9 2026 (shared-repo setup)
+.remotion/
+*.app/
+dashboard/mac/build/
+dashboard/mac/*.app
+.DS_Store
+*.pyc
+# per-Mac settings and caches (never shared)
+.env.local
+fal_url_cache.json

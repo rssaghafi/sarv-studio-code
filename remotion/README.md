@@ -1,0 +1,9 @@
+# sarv-remotion v0.6 (Nov 5, 2026, EP2 closing segment): labels card chips ORDER / OPEN / DEVICE, optional `fa` (Persian couplet, right-to-left, system Persian font) and `at` (fade-in second) on each label row. v0.5b Cards.tsx/types.ts/README in ../_to_delete/remotion_v0.5b_src/.
+# sarv-remotion v0.5 (Oct 24, 2026, G5 finished film): `logo` prop — title card brand mark top-right, end card logo + NEXT in the left half (right half free for YouTube end-screen elements); labels card sits high with a `sub` footer and no-wrap tags. v0.4 Cards.tsx/types.ts in ../_to_delete/remotion_v0.4_src/.
+# sarv-remotion v0.4 candidate (Oct 22, 2026, WX wind) — v0.3 source in ../_to_delete/remotion_v0.3_src; v0.3 (Oct 22) — templates + camera kit (v0.2 files in ../_to_delete/remotion_v0.2/)
+Compositions: `Film` (1920×1080; master, or animatic with props.animatic=true) and `Short` (1080×1920). Duration comes from props.
+Props schema: src/types.ts (shots with kind/src/dur/move/trans, narration, music + ducking, captions, flags). One move per shot: none | push | pan-l | pan-r | parallax (needs fg cut-out) | speaker (push to props `focus` [x,y], cap 1.25) | drift (slow 1.02→1.05 for silences). v0.3: `Short` shows the full 16:9 frame in a 9:16 lapis canvas (no crop; src916 deprecated). Transitions: cut | dissolve | goldwipe.
+Render: `bash scripts/render_v03.sh setup` then `init <job> Film|Short <public_dir> <dest.mp4> <props.json>`, `step` until VIDEO DONE, `finish` (normalises to −16 LUFS). render_v03.sh defaults to this project; REMOTION_SRC overrides it.
+Demo: Persian Stories/99_tests/oct20-remotion-templates/ (props_film.json, props_short.json, props_animatic.json, public/).
+Fonts: Cormorant Garamond (SIL OFL, src/fonts/OFL-LICENSE.txt), bundled — no network needed at render.
+Captions come from script text + alignment timings (never from STT text: STT misspells names).
