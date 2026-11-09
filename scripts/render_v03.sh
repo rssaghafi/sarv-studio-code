@@ -10,7 +10,7 @@
 #   render_v03.sh status <job> | clean <job>
 set -euo pipefail
 export NODE_USE_ENV_PROXY=1                       # Node must use the VM proxy (else DNS fails)
-CODE="${SARV_CODE:-$HOME/mnt/Sarv Studio Code}"
+CODE="${SARV_CODE:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"   # the folder this script lives in
 SRC="${REMOTION_SRC:-$CODE/remotion}"             # Remotion project source
 WORK="${SARV_WORK:-$HOME/sarv-render}"            # node_modules, bundles, chunks: never in connected folders
 BUDGET="${STEP_BUDGET_S:-110}"
