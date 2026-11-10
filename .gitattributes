@@ -1,0 +1,9 @@
+# Keep line endings as LF everywhere, so the bash scripts also run on Windows (WSL) checkouts.
+* text=auto eol=lf
+*.sh text eol=lf
+*.py text eol=lf
+*.png binary
+*.jpg binary
+*.mp3 binary
+*.mp4 binary
+*.zip binary
