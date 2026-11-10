@@ -13,7 +13,8 @@ WORK="${TMPDIR:-/tmp}/plandashboard-icon.$$"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$WORK/PlanDashboard.iconset"
 
 # Icon: brand logo (or icon.svg if the logo is missing) -> 1024 PNG -> iconset -> .icns
-LOGO="${ICON_SOURCE:-${PERSIAN_STORIES:-$DASH/../../Persian Stories}/01_bible/brand/logo_sarv-simurgh_v2_transparent.png}"
+PS="${PERSIAN_STORIES:-$(cd "$DASH" && "$VENV/bin/python" -c 'import reader; print(reader.default_root())')}"
+LOGO="${ICON_SOURCE:-$PS/01_bible/brand/logo_sarv-simurgh_v2_transparent.png}"
 PNG="$WORK/icon.png"
 if [ -f "$LOGO" ]; then
   "$VENV/bin/python" "$HERE/make_icon.py" "$LOGO" "$PNG"

@@ -18,6 +18,9 @@ class T(unittest.TestCase):
         self.tmp = tempfile.mkdtemp()
         self.appdata = Path(self.tmp) / 'appdata'
         os.environ['PLAN_DASHBOARD_DATA'] = str(self.appdata)
+        self._old_user = os.environ.get('SARV_USER')
+        os.environ['SARV_USER'] = 'reza'
+        self.addCleanup(lambda: os.environ.pop('SARV_USER', None) if self._old_user is None else os.environ.__setitem__('SARV_USER', self._old_user))
         self.root = make_fixture(self.tmp)
 
     def tearDown(self):
@@ -74,6 +77,15 @@ class T(unittest.TestCase):
         srv = self.serve(lan=True)
         with urlopen('http://127.0.0.1:%d/cost-log.csv' % srv.server_address[1]) as r:
             self.assertTrue(r.headers['Content-Type'].startswith('text/plain'))
+            self.assertEqual(r.read(), (self.root / '05_ops' / 'cost-log.csv').read_bytes())
+
+    def test_cost_log_view_of_another_person_and_bad_names(self):
+        (self.root / '05_ops' / 'cost-log_edris.csv').write_text('date,episode\n2026-11-12,EP04\n', encoding='utf-8')
+        srv = self.serve(lan=True)
+        base = 'http://127.0.0.1:%d/cost-log.csv' % srv.server_address[1]
+        with urlopen(base + '?person=edris') as r:
+            self.assertEqual(r.read(), b'date,episode\n2026-11-12,EP04\n')
+        with urlopen(base + '?person=..%2F..%2Fsecret') as r:  # not a name: falls back to this Mac's own log
             self.assertEqual(r.read(), (self.root / '05_ops' / 'cost-log.csv').read_bytes())
 
     def test_open_cost_log_only_from_this_mac(self):

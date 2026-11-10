@@ -7,7 +7,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
 import reader  # noqa: E402
 
-REAL = Path(os.environ.get('PERSIAN_STORIES', HERE.parent.parent.parent / 'Persian Stories'))
+REAL = reader.default_root()  # PERSIAN_STORIES if set, else where the dashboard finds it
 FILM = 'EP02_rostam-and-sohrab'
 
 
@@ -39,8 +39,14 @@ class T(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.mkdtemp()
         os.environ['PLAN_DASHBOARD_DATA'] = str(Path(self.tmp) / 'appdata')
+        self._old_user = os.environ.get('SARV_USER')
+        os.environ['SARV_USER'] = 'reza'  # tests must not depend on whose Mac this is
 
     def tearDown(self):
+        if self._old_user is None:
+            os.environ.pop('SARV_USER', None)
+        else:
+            os.environ['SARV_USER'] = self._old_user
         shutil.rmtree(self.tmp, ignore_errors=True)
 
     def titles(self, d):
@@ -153,9 +159,12 @@ class T(unittest.TestCase):
 
     def test_changes_since_seen(self):
         root = make_fixture(self.tmp)
+        p = root / 'Films' / FILM / 'plan.json'
+        plan0 = json.loads(p.read_text())
+        plan0['gates'][-1]['tasks'][-1]['s'] = 'todo'   # the real plan may be fully done; keep one open task for this test
+        p.write_text(json.dumps(plan0))
         d1 = reader.build(root)
         self.assertTrue(d1['changes']['since_seen'].get('first_run'))
-        p = root / 'Films' / FILM / 'plan.json'
         plan = json.loads(p.read_text())
         plan['gates'][3]['tasks'].pop()      # remove a task
         next(t for g in plan['gates'] for t in g['tasks'] if t['s'] != 'done')['s'] = 'done'
@@ -203,6 +212,52 @@ class T(unittest.TestCase):
         self.assertEqual(d['spend']['rows'], n)
         self.assertEqual(d['spend']['cost_log'], str(log))
         self.assertAlmostEqual(before - reader.film_spend(make_fixture(Path(self.tmp) / 'b'), 'EP02')[0], 1.25, places=3)
+
+    def test_two_partners_cost_logs_are_added_per_film(self):
+        root = make_fixture(self.tmp)
+        reza_total, reza_rows = reader.film_spend(root, 'EP02')
+        ops = root / '05_ops'
+        (ops / 'cost-log_edris.csv').write_text(
+            'date,episode,stage,vendor,model,units,cost_usd,note\n'
+            '2026-11-12,EP02,test,fal,x,1,2.5,edris row\n'
+            '2026-11-12,EP04,test,fal,x,1,7,other film\n', encoding='utf-8')
+        (ops / 'cost-log_v1_20261109.csv').write_text('date,episode,cost_usd\n2026-11-12,EP02,99\n', encoding='utf-8')  # a backup copy, not a person
+        (ops / 'cost-log_Edris.csv').write_text('date,episode,cost_usd\n2026-11-12,EP02,99\n', encoding='utf-8')       # wrong case, ignored
+        self.assertEqual([p for p, _ in reader.cost_log_files(root)], ['reza', 'edris'])
+        total, rows = reader.film_spend(root, 'EP02')
+        self.assertAlmostEqual(total, reza_total + 2.5, places=3)
+        self.assertEqual(rows, reza_rows + 1)
+        by = reader.film_spend_by_person(root, 'EP02')
+        self.assertEqual(by['edris'], (2.5, 1))
+        self.assertEqual(by['reza'], (reza_total, reza_rows))
+        self.assertEqual(reader.film_spend_by_person(root, 'EP04')['edris'], (7.0, 1))
+        d = reader.build(root)
+        self.assertEqual(d['spend']['total_usd'], total)
+        self.assertEqual({x['person']: x['usd'] for x in d['spend']['by_person']}, {'reza': reza_total, 'edris': 2.5})
+        self.assertEqual(sorted(d['spend']['cost_logs']), ['edris', 'reza'])
+        self.assertEqual(d['spend']['cost_log'], str(ops / 'cost-log.csv'))
+        self.assertIn('Spend differs from cost-log.csv', self.titles(d))  # film.yaml still says Reza's total only
+
+    def test_code_folder_files_are_found_whatever_the_folder_is_called(self):
+        # plans say 'Sarv Studio Code/...'; the code folder may be mounted or cloned under any name
+        self.assertEqual(reader.check_evidence({'file': 'Sarv Studio Code/dashboard/reader.py'}, []), [])
+        self.assertEqual(reader.check_evidence({'file': 'Sarv Studio Code/dashboard/no_such_file.py'}, []),
+                         ['Sarv Studio Code/dashboard/no_such_file.py'])
+
+    def test_only_reza_log_gives_one_person(self):
+        root = make_fixture(self.tmp)
+        self.assertEqual([p for p, _ in reader.cost_log_files(root)], ['reza'])
+        self.assertEqual([x['person'] for x in reader.build(root)['spend']['by_person']], ['reza'])
+
+    def test_current_user_and_log_path(self):
+        root = make_fixture(self.tmp)
+        os.environ['SARV_USER'] = 'edris'
+        self.assertEqual(reader.current_user(), 'edris')
+        self.assertEqual(reader.cost_log_for(root), root / '05_ops' / 'cost-log_edris.csv')
+        self.assertEqual(reader.cost_log_for(root, 'reza'), root / '05_ops' / 'cost-log.csv')
+        os.environ['SARV_USER'] = '../evil'
+        self.assertEqual(reader.current_user(), 'reza')
+        self.assertEqual(reader.cost_log_for(root, '../x'), root / '05_ops' / 'cost-log.csv')
 
     def test_tasks_sorted_by_order_field(self):
         root = make_fixture(self.tmp)

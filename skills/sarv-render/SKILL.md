@@ -1,10 +1,11 @@
 ---
-name: sarv-render
-description: Sarv & Simurgh renderer: renders Remotion compositions (tests, animatics, films, Shorts) in the Cowork VM in resumable steps, applies the camera rules, checks output. Use for render, animatic, parallax, camera move, master.
+name: "sarv-render"
+description: "Render Sarv & Simurgh films, animatics and Shorts with the pinned Remotion kit in short resumable steps."
 ---
-# sarv-render v0.2 (Playbook rev 6: S6 step 4, S11; STUDIO.md v1.3 layout)
 
-Read first: Persian Stories/STUDIO.md v1.3 (§2, §4, §5, §8, §9) and the film's `Films/EPxx_<slug>/film.yaml` (pinned engine/kit version). Also use the installed Remotion skills (best-practices, render, captions) for component code. Paths below are relative to the film folder `Films/EPxx_<slug>/` unless they start with a root folder name. EP1 lives in Films/EP01_zal-and-the-simurgh (migrated Nov 9; old folder numbering kept, see its README.md).
+# sarv-render v0.4 (STUDIO.md v2.2; recipes also in 03_templates/agents/editor-renderer.md)
+
+Read first: Persian Stories/STUDIO.md (current version; it wins) and 03_templates/agents/editor-renderer.md and the film's `Films/EPxx_<slug>/film.yaml` (pinned engine/kit version). Also use the installed Remotion skills (best-practices, render, captions) for component code. Paths below are relative to the film folder `Films/EPxx_<slug>/` unless they start with a root folder name. EP1 lives in Films/EP01_zal-and-the-simurgh (migrated Nov 9; old folder numbering kept, see its README.md).
 
 ## Contract
 | | |
@@ -21,12 +22,12 @@ Read first: Persian Stories/STUDIO.md v1.3 (§2, §4, §5, §8, §9) and the fil
 - Scale stays modest: ≤1.15 over a long hold, ≤1.10 over a 5-s shot (speaker cap above). Parallax relative offset ≤14 px (larger shows the background ghost edge).
 - Moves go on top of locked-camera Kling clips or stills. Full-bleed frame, no border overlay.
 - Wing beats and head turns, when a beat needs them: cut-out animation from layered plates, not a generated clip.
-- Shorts / TikTok teasers: the COMPLETE 16:9 frame centred in a lapis 9:16 canvas with gold hairlines, hook line and burned-in captions in the bands, end line "Full film on YouTube — link in bio". No cropped 9:16 and no outpainted frames.
+- Shorts and chapter cuts (ED-05): full-screen 9:16 only, 1080x1920, cropped from the 1920x1080 film with a per-shot crop plan Reza has approved; each cut 3:00 or under; pans are timed to the narration; title and text cards are scaled to fit on a lapis ground, never cropped. Built with ffmpeg (no paid calls). No lapis letterbox and no plain 16:9 cuts unless Reza asks. No outpainted frames.
 
-## Render procedure (scripts/render_v03.sh)
+## Render procedure (scripts/render_v03.sh; it stops if the sound step fails, ALLOW_SILENT=1 only for a deliberately silent render)
 Start with the health check (free disk on the work volume, engine version, balance). The VM cap is ~180 s per call and background jobs die, so every render is a job of short steps:
 ```
-R="$HOME/mnt/Sarv Studio Code/scripts/render_v03.sh"
+R="$(ls -d "${SARV_CODE:-/nonexistent}" "$HOME/Code/Sarv Studio Code" "$HOME"/mnt/*"Sarv Studio Code" 2>/dev/null | head -1)/scripts/render_v03.sh"   # code folder: SARV_CODE, else ~/Code, else any mounted folder ending in Sarv Studio Code
 bash "$R" setup                                   # once per session (~30 s): copies the project to ~/sarv-render, npm install
 bash "$R" init  <job> <Composition> <public_dir> <dest.mp4> [props.json]
 bash "$R" step  <job>                             # repeat until it prints VIDEO DONE (one call each)
@@ -34,7 +35,7 @@ bash "$R" finish <job>                            # audio pass, concat, mux, lou
 bash "$R" clean <job>
 ```
 - public_dir = the folder holding the media the composition loads (staticFile paths are relative to it).
-- dest is never overwritten: use versioned names. Tests → 99_tests/<test>/; animatic → Films/EPxx/08_edit/animatic_v<n>.mp4 (review copy shown in Output/G4_storyboard/); master → 09_deliver/master_v<n>.mp4; Shorts → 09_deliver/shorts/.
+- dest is never overwritten: use versioned names. Tests → 99_tests/<test>/; animatic → Films/EPxx/08_edit/animatic_v<n>.mp4 (review copy shown in Output/G4_storyboard/); review copies go in Output/<gate>/; approved files are moved (not copied) into 10_publish: film → Full Movie/, Short → Shorts/Highlights/, chapters → Shorts/Chapters/ (FI-11; 09_deliver is retired).
 - Tuning knobs: CHUNK_FRAMES (default 300), STEP_BUDGET_S (default 110).
 - Measured Oct 17 (60 s, 1080p, simple scene): init 19 s + 2 step calls (145 s) + finish 31 s ≈ 3.3 min. A 12-min episode ≈ 40 min and ~20 step calls.
 
@@ -44,4 +45,4 @@ bash "$R" clean <job>
 3. Log render time in time-log.csv (Claude session minutes); Reza judges motion and style by watching and his minutes go in the attention column.
 
 ## Components available now
-- Sarv Studio Code/remotion (kit v0.5b): see its README for Parallax, speaker, drift, particles, Short letterbox.
+- Sarv Studio Code/remotion (kit v0.7): see its README for Parallax, speaker, drift, particles and the title options veilIn, veilOut, textIn, textOut, dust. The old bench Scene's gold double border belongs to the retired Safavid look; do not reuse it.

@@ -23,6 +23,7 @@ In Terminal: `cd "<Sarv Studio Code>/dashboard" && python3 server.py --lan`
 ## Settings (optional)
 - PERSIAN_STORIES = path to the Persian Stories folder (default: the folder next to Sarv Studio Code)
 - PLAN_DASHBOARD_DATA = where the "last seen" copy is kept
+- SARV_USER = whose log files this Mac writes (reza or edris; also read from SARV_USER= in the code folder's .env). The spend total adds every person's 05_ops/cost-log*.csv and shows the split per person when more than one has rows. The cost-log link opens your own file; add ?person=<name> to view another person's.
 
 ## Stage 2 (Claude Code on the Mac, one step at a time)
 Paste this into Claude Code (desktop app, folder: Sarv Studio Code):

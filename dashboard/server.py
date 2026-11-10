@@ -8,7 +8,7 @@ Serves index.html and two small endpoints:
   GET  /cost-log.csv         -> 05_ops/cost-log.csv as plain text (read-only view)
   POST /api/open-cost-log    -> opens cost-log.csv in the Mac's default app for .csv (this Mac only)
 """
-import argparse, json, os, socket, subprocess, sys, threading, webbrowser
+import argparse, json, os, re, socket, subprocess, sys, threading, webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs
 from pathlib import Path
@@ -29,8 +29,9 @@ def from_this_mac(client_ip, server_ip):
     return client_ip == server_ip
 
 
-def cost_log_path():
-    return (Path(ROOT) if ROOT else reader.default_root()) / '05_ops' / 'cost-log.csv'
+def cost_log_path(person=None):
+    """This Mac's own cost log (SARV_USER), or the named person's with ?person=<name>."""
+    return reader.cost_log_for(Path(ROOT) if ROOT else reader.default_root(), person)
 
 
 def mac_name():
@@ -70,7 +71,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(500, json.dumps({'error': str(e)}))
         if u.path == '/cost-log.csv':
             try:
-                return self._send(200, cost_log_path().read_bytes(), 'text/plain; charset=utf-8')
+                return self._send(200, cost_log_path((q.get('person') or [None])[0]).read_bytes(), 'text/plain; charset=utf-8')
             except OSError as e:
                 return self._send(404, 'cost-log.csv not found: %s' % e, 'text/plain')
         self._send(404, 'Not found', 'text/plain')
@@ -92,7 +93,7 @@ class Handler(BaseHTTPRequestHandler):
         if u.path == '/api/open-cost-log':
             if not self._from_this_mac():
                 return self._send(403, json.dumps({'error': 'Only on the Mac itself.'}))
-            f = cost_log_path()
+            f = cost_log_path((q.get('person') or [None])[0])
             if not f.is_file():
                 return self._send(404, json.dumps({'error': 'cost-log.csv not found'}))
             r = subprocess.run(['open', str(f)], capture_output=True, text=True, timeout=10)

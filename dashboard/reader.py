@@ -12,7 +12,12 @@ def default_root():
     env = os.environ.get('PERSIAN_STORIES')
     if env:
         return Path(env)
-    return Path(__file__).resolve().parent.parent.parent / 'Persian Stories'
+    # next to Sarv Studio Code, else the usual project folders (Sarv Studio Code now lives in ~/Code)
+    home = Path.home()
+    places = [Path(__file__).resolve().parent.parent.parent / 'Persian Stories',
+              home / 'Library/CloudStorage/OneDrive-Personal/Claude/Projects/Persian Stories',
+              home / 'Claude/Projects/Persian Stories']
+    return next((p for p in places if (p / 'Films').is_dir()), places[0])
 
 
 def app_data_dir():
@@ -162,15 +167,61 @@ def read_csv(path):
         return []
 
 
+_NAME_RE = re.compile(r'^[a-z][a-z-]{0,29}$')
+_PERSON_FILE_RE = re.compile(r'^cost-log_([a-z][a-z-]{0,29})\.csv$')
+
+
+def current_user():
+    """Whose files this Mac writes: SARV_USER (environment, else SARV_USER= in the code folder's .env), default 'reza'."""
+    v = os.environ.get('SARV_USER')
+    if not v:
+        try:
+            for line in (Path(__file__).resolve().parent.parent / '.env').read_text(encoding='utf-8').splitlines():
+                if line.strip().startswith('SARV_USER='):
+                    v = line.split('=', 1)[1].strip().strip('"\'')
+        except OSError:
+            pass
+    v = (v or 'reza').strip().lower()
+    return v if _NAME_RE.match(v) else 'reza'
+
+
+def cost_log_files(root):
+    """[(person, path)]: 05_ops/cost-log.csv is Reza's; 05_ops/cost-log_<name>.csv belongs to <name>."""
+    d = Path(root) / '05_ops'
+    out = []
+    if (d / 'cost-log.csv').exists():
+        out.append(('reza', d / 'cost-log.csv'))
+    if d.is_dir():
+        for p in sorted(d.iterdir()):
+            m = _PERSON_FILE_RE.match(p.name)
+            if m and m.group(1) != 'reza':
+                out.append((m.group(1), p))
+    return out
+
+
+def cost_log_for(root, person=None):
+    person = person if person and _NAME_RE.match(person) else current_user()
+    return Path(root) / '05_ops' / ('cost-log.csv' if person == 'reza' else 'cost-log_%s.csv' % person)
+
+
+def film_spend_by_person(root, ep_code):
+    """{person: (usd, rows)} for one episode, from every person's cost log."""
+    out = {}
+    for person, path in cost_log_files(root):
+        total, rows = 0.0, 0
+        for r in read_csv(path):
+            if (r.get('episode') or '').strip() == ep_code:
+                v = num(r.get('cost_usd'))
+                if v is not None:
+                    total += v
+                    rows += 1
+        out[person] = (round(total, 3), rows)
+    return out
+
+
 def film_spend(root, ep_code):
-    total, rows = 0.0, 0
-    for r in read_csv(root / '05_ops' / 'cost-log.csv'):
-        if (r.get('episode') or '').strip() == ep_code:
-            v = num(r.get('cost_usd'))
-            if v is not None:
-                total += v
-                rows += 1
-    return round(total, 3), rows
+    per = film_spend_by_person(root, ep_code)
+    return round(sum(v[0] for v in per.values()), 3), sum(v[1] for v in per.values())
 
 
 def count_pictures(fd):
@@ -193,6 +244,17 @@ PATH_HINT = re.compile(r'/|\.(html|md|csv|json|mp3|m4a|png|jpg|yaml|srt|mp4|txt|
 DIR_PREFIX = re.compile(r'((?:[\w.&\- ]+/)+)[^/]*$')
 
 
+CODE_ROOT = Path(__file__).resolve().parent.parent   # this code folder, wherever it is cloned or mounted
+CODE_PREFIX = 'Sarv Studio Code/'                      # how plans name files in the code folder
+
+
+def _hit(base, cand):
+    """True if 'cand' exists under 'base'; 'Sarv Studio Code/x' is looked up in this code folder whatever its folder name is."""
+    if cand.startswith(CODE_PREFIX) and (CODE_ROOT / cand[len(CODE_PREFIX):]).exists():
+        return True
+    return (base / cand).exists()
+
+
 def _exists_any(piece, bases):
     words = piece.split(' ')
     for i in range(len(words)):
@@ -200,14 +262,16 @@ def _exists_any(piece, bases):
         if not cand:
             continue
         for b in bases:
-            if (b / cand).exists():
+            if _hit(b, cand):
                 return True
+        if _hit(Path('.'), cand) and cand.startswith(CODE_PREFIX):
+            return True
     return False
 
 
 def _exact(path, bases):
     p = path.strip().rstrip('.')
-    return bool(p) and any((b / p).exists() for b in bases)
+    return bool(p) and (any(_hit(b, p) for b in bases) or (p.startswith(CODE_PREFIX) and _hit(Path('.'), p)))
 
 
 def _strip_notes(text):
@@ -349,6 +413,9 @@ def build(root=None, film=None, now=None):
              'subscriptions.csv': root / '00_admin' / 'subscriptions.csv',
              'credit-balances.csv': root / '00_admin' / 'credit-balances.csv'}
     files = {n: mtime(p) for n, p in watch.items() if mtime(p)}
+    _cl = [mtime(p) for _, p in cost_log_files(root) if mtime(p)]
+    if _cl:
+        files['cost-log.csv'] = max(_cl)  # newest of every person's cost log
     newest_name = max(files, key=files.get) if files else None
     older_than = [n for n in ('film.yaml', 'cost-log.csv') if files.get(n) and files[n] > plan_saved + 1]
 
@@ -379,6 +446,7 @@ def build(root=None, film=None, now=None):
 
     spent_yaml = num((fy.get('budget') or {}).get('spent_usd'))
     spent_log, nrows = film_spend(root, ep_code)
+    by_person = film_spend_by_person(root, ep_code)
     if spent_yaml is not None and abs(spent_yaml - spent_log) > 0.005:
         warnings.append({'level': 'warn', 'title': 'Spend differs from cost-log.csv',
                          'detail': 'film.yaml says $%.2f; cost-log.csv has $%.2f for %s (%d rows).' % (spent_yaml, spent_log, ep_code, nrows)})
@@ -401,7 +469,9 @@ def build(root=None, film=None, now=None):
         warnings.append({'level': 'warn', 'title': 'Picture count differs',
                          'detail': 'film.yaml says %d accepted; %d image files are filed in 02_cast and 03_world.' % (acc, pics)})
 
-    bases = [fd, root, root.parent]
+    bases = [fd, root, root.parent, Path.home() / 'Code']   # Sarv Studio Code now lives in ~/Code
+    if os.environ.get('SARV_CODE'):
+        bases.append(Path(os.environ['SARV_CODE']).parent)
     for g in ([] if planless else plan['gates']):
         for t in g['tasks']:
             if t.get('s') != 'done':
@@ -455,7 +525,9 @@ def build(root=None, film=None, now=None):
         'plan': {'version': meta.get('version'), 'publish': meta.get('publish'), 'spend': meta.get('spend'),
                  'gates': sorted_gates(plan['gates']), 'standing': plan.get('standing', [])},
         'spend': {'total_usd': spent_log, 'rows': nrows, 'episode': ep_code,
-                  'cost_log': str(root / '05_ops' / 'cost-log.csv')},
+                  'cost_log': str(root / '05_ops' / 'cost-log.csv'),
+                  'by_person': [{'person': p, 'usd': v[0], 'rows': v[1]} for p, v in by_person.items()],
+                  'cost_logs': {p: str(path) for p, path in cost_log_files(root)}},
         'warnings': warnings,
         'changes': {'since_seen': since_seen, 'vs_previous': vs_prev},
         'subscriptions': subs,
